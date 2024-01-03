@@ -1,0 +1,11 @@
+{
+    "name": "file-manager",
+    "version": "1.0.0",
+    "main": "app.js",
+    "dependencies": {
+        "bootstrap": "^5.3.2",
+        "express": "^4.17.1",
+        "node-localstorage": "^3.0.5",
+        "timeout-as-promise": "^1.0.0"
+    }
+}
