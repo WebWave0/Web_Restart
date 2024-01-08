@@ -2,8 +2,12 @@ const express = require('express');
 const { exec } = require('child_process');
 const app = express();
 
-const file_path_key = 'FILE_PATH';
-const file_path = process.env[file_path_key] || '\\path\\to\\your\\file';
+const scripts = [
+  { name: 'Script 1', path: 'start.bat' },
+  { name: 'Script 2', path: 'start1.bat' },
+  { name: 'Script 3', path: 'start2.bat' },
+  // Добавьте другие файлы по аналогии
+];
 
 let log = [];
 let status_message = '';
@@ -41,78 +45,102 @@ function runFile(command) {
 
 app.get('/', (req, res) => {
   console.log('Request for the main page.');
-  res.send(renderPage());
-});
-
-app.get('/start', (req, res) => {
-  log = [];
-  status_message = '';
-  console.log('Request to start the file.');
-  const command = `start cmd /c "${file_path}"`;
-  runFile(command);
-  status_message = 'File successfully started.';
-  res.redirect('/');
-});
-
-app.get('/restart', (req, res) => {
-  log = [];
-  status_message = '';
-  console.log('Request to restart the file.');
-  const command = `taskkill /F /IM cmd.exe && start cmd /c "${file_path}"`;
-  runFile(command);
-  //таймер на 3 сек перед запуском
-  setTimeout(() => {
-    console.log('Restarting the file after 3 seconds.');
-    const restartCommand = `start cmd /c "${file_path}"`;
-    runFile(restartCommand);
-  }, 3000);
-  status_message = 'File successfully restarted.';
-  res.redirect('/');
-});
-
-app.get('/stop', (req, res) => {
-  log = [];
-  status_message = '';
-  console.log('Request to stop the file.');
-  const command = 'taskkill /F /IM cmd.exe';
-  runFile(command);
-  status_message = 'File successfully stopped.';
-  res.redirect('/');
-});
-
-function renderPage() {
-  return `
+  const buttons = scripts.map(script => `<form action="/${script.path}" method="get"><button type="submit" class="btn btn-primary">${script.name}</button></form>`).join('');
+  const statusInfo = `<p class="mb-3">${status_message}</p>`;
+  res.send(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Express App</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iK7t9i6U8+EKjDYt2jviKqEAzoFj/RH8xuFqjmeEWO0j3lG6ZQ6brz9O0" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     </head>
     <body>
         <div class="container mt-5">
             <h1 class="mb-3">Express App</h1>
-            <p class="mb-3">${status_message}</p>
+            ${statusInfo}
             <ul class="mb-3">
                 ${log.map(entry => `<li>${entry}</li>`).join('')}
             </ul>
-            <form action="/start" method="get">
-                <button type="submit" class="btn btn-primary mb-3">Start</button>
-            </form>
-            <form action="/restart" method="get">
-                <button type="submit" class="btn btn-warning mb-3">Restart</button>
-            </form>
-            <form action="/stop" method="get">
-                <button type="submit" class="btn btn-danger mb-3">Stop</button>
-            </form>
+            ${buttons}
         </div>
     </body>
     </html>
-  `;
-}
+  `);
+});
+
+scripts.forEach(script => {
+  app.get(`/${script.path}`, (req, res) => {
+    log = [];
+    status_message = '';
+    console.log(`Request for the ${script.name}.`);
+    const statusInfo = `<p class="mb-3">${status_message}</p>`;
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Express App - ${script.name}</title>
+          <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+      </head>
+      <body>
+          <div class="container mt-5">
+              <h1 class="mb-3">${script.name}</h1>
+              ${statusInfo}
+              <form action="/${script.path}/start" method="get">
+                  <button type="submit" class="btn btn-primary mb-3">Start</button>
+              </form>
+              <form action="/${script.path}/restart" method="get">
+                  <button type="submit" class="btn btn-warning mb-3">Restart</button>
+              </form>
+              <form action="/${script.path}/stop" method="get">
+                  <button type="submit" class="btn btn-danger mb-3">Stop</button>
+              </form>
+              <form action="/" method="get">
+                  <button type="submit" class="btn btn-secondary mb-3">Back to Main</button>
+              </form>
+          </div>
+      </body>
+      </html>
+    `);
+
+    app.get(`/${script.path}/start`, (req, res) => {
+      const command = `start cmd /c "${script.path}"`;
+      console.log(`Request to start ${script.name}.`);
+      console.log(`Executing command for start: ${command}`);
+      runFile(command);
+      res.redirect(`/${script.path}`);
+    });
+
+    app.get(`/${script.path}/restart`, (req, res) => {
+      const command = `taskkill /F /IM cmd.exe`;
+      console.log(`Request to restart ${script.name}.`);
+      console.log(`Executing command for restart: ${command}`);
+      runFile(command);
+      setTimeout(() => {
+        const startCommand = `start cmd /c "${script.path}"`;
+        console.log(`Executing command for restart: ${startCommand}`);
+        runFile(startCommand);
+      }, 3000);
+      res.redirect(`/${script.path}`);
+    });
+
+    app.get(`/${script.path}/stop`, (req, res) => {
+      const command = `taskkill /F /IM cmd.exe`;
+      console.log(`Request to stop ${script.name}.`);
+      console.log(`Executing command for stop: ${command}`);
+      runFile(command);
+      status_message = `${script.name} successfully stopped.`;
+      res.redirect(`/${script.path}`);
+    });
+  });
+});
+
 
 const port = 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const host = '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`Server is running on http://${host}:${port}`);
 });
